@@ -1,0 +1,6 @@
+node_modules/
+raw/
+.venv/
+data/mock/
+data/source/
+.DS_Store

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Buyer Zip Coverage</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="vendor/d3.min.js"></script>
+  <script src="vendor/topojson-client.min.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module">
+    import { config } from './config.js';
+    import { mountZipMap } from './zipmap.js';
+    // ?sheet=<id> points the page at a Google Sheet without editing config.js
+    const q = new URLSearchParams(location.search);
+    if (q.get('sheet')) Object.assign(config, { source: 'sheet', sheetId: q.get('sheet') });
+    if (q.get('source')) config.source = q.get('source');
+    if (q.get('client')) config.clientId = q.get('client');
+    mountZipMap('#app', config);
+  </script>
+</body>
+</html>
