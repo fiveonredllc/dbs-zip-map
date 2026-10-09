@@ -121,6 +121,7 @@ export async function loadWorkbook(config) {
   });
 
   const verticals = [];
+  const verticalColor = new Map();   // optional `color` column in _verticals (any CSS color)
   const verticalRows = table(await fetchTab(config, '_verticals'));
   if (!verticalRows.length || !('vertical' in verticalRows[0])) throw new Error('_verticals tab needs columns: vertical, notes');
   verticalRows.forEach((row, i) => {
@@ -128,6 +129,11 @@ export async function loadWorkbook(config) {
     if (!name) return;
     if (verticals.some((v) => norm(v) === norm(name))) return issue('warn', { tab: '_verticals', row: i + 2, value: name, problem: 'duplicate vertical (ignored)' });
     verticals.push(name);
+    const c = (row.color || '').trim();
+    if (c) {
+      if (typeof CSS !== 'undefined' && CSS.supports('color', c)) verticalColor.set(name, c);
+      else issue('warn', { tab: '_verticals', row: i + 2, value: c, problem: 'color is not a CSS color like #2e9e6b (default color used)' });
+    }
   });
   const vertByNorm = new Map(verticals.map((v) => [norm(v), v]));
 
@@ -156,7 +162,7 @@ export async function loadWorkbook(config) {
     }));
   }));
 
-  return { buyers, verticals, raw, issues, loadedAt: new Date() };
+  return { buyers, verticals, verticalColor, raw, issues, loadedAt: new Date() };
 }
 
 // Step 2: turn cells into zips. `geo` provides prefixToStates (3-digit zip prefix -> states, most zips first), a Set of

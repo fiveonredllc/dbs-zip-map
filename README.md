@@ -55,7 +55,7 @@ does not allow for this sheet.
 | Tab | Columns | Rules |
 |---|---|---|
 | `_buyers` | `buyer`, `status`, `notes` | One row per buyer. `status` is `active`, `prospect` or `paused`. The buyer name must match its tab name exactly. |
-| `_verticals` | `vertical`, `notes` | One row per vertical. Column headers on buyer tabs must match these (case and spacing ignored). |
+| `_verticals` | `vertical`, `notes`, optional `color` | One row per vertical. Column headers on buyer tabs must match these (case and spacing ignored). Each vertical gets its own map color in tab order; put a CSS color such as `#2e9e6b` in `color` to pin one. |
 | one tab per buyer | row 1 = vertical names | Every cell below the header is one coverage item: a 5-digit zip (ZIP+4 accepted) or `City, ST`. Column lengths can differ. |
 
 How values are read:
@@ -80,8 +80,9 @@ How values are read:
 
 ## Reading the map
 
-- Fill = number of distinct active buyers covering that zip in the selected vertical. Grey = none.
-  With "All verticals" a buyer counts once no matter how many verticals they cover there.
+- Fill hue = the vertical covering that zip. Shade = how many distinct active buyers cover it (1, 2, 3+).
+  A zip covered under two or more of the selected verticals is grey, shaded the same way. No fill = no
+  coverage. A buyer counts once per zip no matter how many of the selected verticals they cover there.
 - One active buyer selected = flat blue, since overlap means nothing for one buyer.
 - Orange hatch = at least one prospect targets the zip. "Prospect-only zips" counts the ones no
   active buyer has, which is the coverage a prospect would add.
