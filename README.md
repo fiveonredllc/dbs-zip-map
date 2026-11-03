@@ -87,8 +87,8 @@ How values are read:
 - One active buyer selected = flat blue, since overlap means nothing for one buyer.
 - Orange = at least one prospect targets the zip. "Prospect-only zips" counts the ones no active buyer
   has, which is the coverage a prospect would add.
-- Zoom in for county lines, then city outlines and names, then zip numbers. Hover for the buyer list,
-  click to pin it.
+- Scroll to zoom, drag to pan. Zoom in for county lines, then city outlines and names, then zip
+  numbers. Hover for the buyer list, click to pin it.
 
 ## Rebuild the geo data
 

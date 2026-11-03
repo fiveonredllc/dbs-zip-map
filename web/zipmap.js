@@ -94,8 +94,8 @@ export async function mountZipMap(container, config) {
   gBorders.append('path').attr('d', path(topojson.mesh(us, us.objects.states)));
 
   const zoom = d3.zoom().scaleExtent([1, 80])
-    .filter((ev) => (ev.type === 'wheel' ? ev.shiftKey || ev.ctrlKey : !ev.ctrlKey && !ev.button))
-    .wheelDelta((ev) => -(ev.deltaY || ev.deltaX) * (ev.deltaMode === 1 ? 0.05 : ev.deltaMode ? 1 : 0.002) * (ev.ctrlKey ? 10 : 1))
+    .filter((ev) => (ev.type === 'wheel' ? true : !ev.ctrlKey && !ev.button))
+    .wheelDelta((ev) => -ev.deltaY * (ev.deltaMode === 1 ? 0.05 : ev.deltaMode ? 1 : 0.002) * (ev.ctrlKey ? 10 : 1))
     .on('zoom', (ev) => {
     const t = ev.transform;
     root.attr('transform', t);
@@ -489,7 +489,7 @@ function template() {
       </div>
       <div class="zm-legend"></div>
       <div class="zm-tip" hidden></div>
-      <div class="zm-hint">shift + scroll to zoom · drag to pan · click a zip to pin its details</div>
+      <div class="zm-hint">scroll to zoom · drag to pan · click a zip to pin its details</div>
     </div>
   </main>`;
 }
