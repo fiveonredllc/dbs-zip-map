@@ -46,8 +46,8 @@ function loadScript(src) {
   });
 }
 // interactive=false returns null instead of opening a popup, so the page can show a sign-in button.
-export async function googleToken(config, interactive) {
-  const t = savedToken();
+export async function googleToken(config, interactive, prompt = '') {
+  const t = prompt ? null : savedToken();
   if (t) return t;
   if (!interactive) return null;
   if (!config.clientId) throw new Error('config.clientId is empty');
@@ -63,7 +63,7 @@ export async function googleToken(config, interactive) {
       },
       error_callback: (e) => reject(new Error(e.type === 'popup_closed' ? 'sign-in window was closed' : e.message || e.type)),
     });
-    tc.requestAccessToken({ prompt: '' });
+    tc.requestAccessToken({ prompt });
   });
 }
 export function googleSignOut() { try { sessionStorage.removeItem(TOKEN_KEY); } catch {} }

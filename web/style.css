@@ -41,6 +41,7 @@ html, body { margin: 0; background: var(--zm-bg); color: var(--zm-ink); font-fam
 .zm-title { font-weight: 650; font-size: 17px; letter-spacing: -0.01em; }
 .zm-status { font-weight: 400; font-size: 12px; color: var(--zm-muted); margin-top: 2px; }
 .zm-status.is-bad { color: var(--zm-bad); }
+.zm-switch { font-size: 11px; color: var(--zm-muted); margin-top: -8px; }
 .zm-signin { background: var(--zm-c5) !important; color: #fff !important; border-color: var(--zm-c5) !important; font-weight: 600; }
 .zm-field { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--zm-muted); }
 .zm select, .zm button { width: 100%; font: inherit; font-size: 13px; color: var(--zm-ink); background: var(--zm-bg); border: 1px solid var(--zm-line); border-radius: 8px; padding: 6px 10px; }

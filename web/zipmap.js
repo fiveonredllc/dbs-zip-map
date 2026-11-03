@@ -364,6 +364,7 @@ export async function mountZipMap(container, config) {
   $('.zm-zreset').addEventListener('click', () => svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity));
   $('.zm-reload').addEventListener('click', () => load(true));
   $('.zm-signin').addEventListener('click', () => load(true));
+  $('.zm-switch').addEventListener('click', (ev) => { ev.preventDefault(); googleSignOut(); load(true, 'select_account'); });
 
   function fitCoverage() {
     const v = state.view;
@@ -420,13 +421,13 @@ export async function mountZipMap(container, config) {
   // ---- load pipeline -----------------------------------------------------------------------
   function setStatus(msg, bad = false) { const s = $('.zm-status'); s.textContent = msg; s.classList.toggle('is-bad', bad); }
 
-  async function load(interactive = false) {
-    $('.zm-signin').hidden = true;
+  async function load(interactive = false, prompt = '') {
+    $('.zm-signin').hidden = true; $('.zm-switch').hidden = true;
     if (config.source === 'google') {
       try {
-        const tok = await googleToken(config, interactive);
-        if (!tok) { setStatus('Sign in to read the sheet'); $('.zm-signin').hidden = false; return; }
-      } catch (e) { setStatus(`Sign-in failed: ${e.message}`, true); $('.zm-signin').hidden = false; return; }
+        const tok = await googleToken(config, interactive, prompt);
+        if (!tok) { setStatus('Sign in to read the sheet'); $('.zm-signin').hidden = false; $('.zm-switch').hidden = false; return; }
+      } catch (e) { setStatus(`Sign-in failed: ${e.message}`, true); $('.zm-signin').hidden = false; $('.zm-switch').hidden = false; return; }
     }
     setStatus('Reading sheet…');
     try {
@@ -446,6 +447,7 @@ export async function mountZipMap(container, config) {
       compute();
       const src = config.source === 'mock' ? 'mock data' : 'Google Sheet';
       setStatus(`${cov.entries.length.toLocaleString()} zip entries · ${cov.buyers.length} buyers · ${src} · read ${cov.loadedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`);
+      if (config.source === 'google') $('.zm-switch').hidden = false;
       if (state.first) { state.first = false; fitCoverage(); }
     } catch (e) {
       console.error(e);
@@ -464,6 +466,7 @@ function template() {
   <aside class="zm-side">
     <div class="zm-title">Buyer zip coverage<div class="zm-status">Loading…</div></div>
     <button class="zm-signin" type="button" hidden>Sign in with Google</button>
+    <a class="zm-switch" href="#" hidden>Use a different Google account</a>
     <div class="zm-stats"></div>
     <button class="zm-alert" type="button"></button>
     <section class="zm-issues" hidden></section>
