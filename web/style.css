@@ -151,3 +151,15 @@ details.zm-sec[open] summary::before { content: '\25BE'; }
 .zm-zoom button { width: 32px; height: 32px; padding: 0; font-size: 16px; line-height: 1; border-radius: 8px; background: color-mix(in srgb, var(--zm-panel) 92%, transparent); }
 .zm-hint { display: none; }
 }
+
+/* team gate */
+.zm-gate { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--zm-bg); z-index: 50; padding: 16px; }
+.zm-gate[hidden] { display: none; }
+.zm-gate-card { width: 100%; max-width: 340px; background: var(--zm-panel); border: 1px solid var(--zm-line); border-radius: 12px; padding: 22px 22px 18px; display: flex; flex-direction: column; gap: 12px; }
+.zm-gate-t { font-weight: 650; font-size: 17px; letter-spacing: -0.01em; }
+.zm-gate-s { font-size: 12px; color: var(--zm-muted); margin-top: -8px; }
+.zm-gate-card label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--zm-muted); }
+.zm-gate-card input { font: inherit; font-size: 14px; color: var(--zm-ink); background: var(--zm-bg); border: 1px solid var(--zm-line); border-radius: 8px; padding: 8px 10px; }
+.zm-gate-card input:focus { outline: 2px solid var(--zm-c3); outline-offset: 1px; border-color: transparent; }
+.zm-gate-card button { font: inherit; font-size: 14px; font-weight: 600; color: #fff; background: var(--zm-c5); border: 1px solid var(--zm-c5); border-radius: 8px; padding: 9px 12px; cursor: pointer; margin-top: 4px; }
+.zm-gate-err { font-size: 12px; color: var(--zm-bad); }

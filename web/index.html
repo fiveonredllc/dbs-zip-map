@@ -9,6 +9,16 @@
   <script src="vendor/topojson-client.min.js"></script>
 </head>
 <body>
+  <div id="gate" class="zm-gate" hidden>
+    <form class="zm-gate-card" autocomplete="off">
+      <div class="zm-gate-t">DBS internal</div>
+      <div class="zm-gate-s">Buyer zip coverage map. Team access only.</div>
+      <label>Username <input name="u" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" required></label>
+      <label>Password <input name="p" type="password" required></label>
+      <button type="submit">Enter</button>
+      <div class="zm-gate-err" hidden>That didn't match. Try again.</div>
+    </form>
+  </div>
   <div id="app"></div>
   <script type="module">
     import { config } from './config.js';
@@ -18,7 +28,30 @@
     if (q.get('sheet')) Object.assign(config, { source: 'sheet', sheetId: q.get('sheet') });
     if (q.get('source')) config.source = q.get('source');
     if (q.get('client')) config.clientId = q.get('client');
-    mountZipMap('#app', config);
+
+    // Team gate. Only a hash of "username:password" lives here. Remembered per browser for 30 days.
+    // Regenerate the hash with:  printf 'user:pass' | shasum -a 256
+    const GATE_HASH = 'e44d61605e9d13c19bca3685f8746d5c5ecaaf17b9388e1016cb45aa4218380f';
+    const GATE_KEY = 'zm.gate';
+    const GATE_DAYS = 30;
+    const sha256 = async (text) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)))].map((b) => b.toString(16).padStart(2, '0')).join('');
+    const gateOpen = () => { try { const g = JSON.parse(localStorage.getItem(GATE_KEY) || 'null'); return g && g.h === GATE_HASH && g.exp > Date.now(); } catch { return false; } };
+    const gate = document.getElementById('gate');
+    const start = () => { gate.hidden = true; mountZipMap('#app', config); };
+    if (gateOpen()) start();
+    else {
+      gate.hidden = false;
+      gate.querySelector('form').addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const f = ev.target;
+        const h = await sha256(`${f.u.value.trim()}:${f.p.value}`);
+        if (h === GATE_HASH) {
+          try { localStorage.setItem(GATE_KEY, JSON.stringify({ h, exp: Date.now() + GATE_DAYS * 864e5 })); } catch {}
+          start();
+        } else { f.querySelector('.zm-gate-err').hidden = false; f.p.value = ''; f.p.focus(); }
+      });
+      gate.querySelector('input[name=u]').focus();
+    }
   </script>
 </body>
 </html>
