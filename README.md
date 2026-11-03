@@ -80,12 +80,13 @@ How values are read:
 
 ## Reading the map
 
-- Fill hue = the vertical covering that zip. Shade = how many distinct active buyers cover it (1, 2, 3+).
-  A zip covered under two or more of the selected verticals is grey, shaded the same way. No fill = no
-  coverage. A buyer counts once per zip no matter how many of the selected verticals they cover there.
+- Every provider's coverage is a translucent layer in its vertical's color, and each prospect is a
+  translucent orange layer. Layers stack: one provider is light, two is darker, three or more darker
+  still, and overlapping verticals mix their colors. No fill = no coverage. The legend shows the same
+  stacking so swatches match the map.
 - One active buyer selected = flat blue, since overlap means nothing for one buyer.
-- Orange hatch = at least one prospect targets the zip. "Prospect-only zips" counts the ones no
-  active buyer has, which is the coverage a prospect would add.
+- Orange = at least one prospect targets the zip. "Prospect-only zips" counts the ones no active buyer
+  has, which is the coverage a prospect would add.
 - Zoom in for county lines, then city outlines and names, then zip numbers. Hover for the buyer list,
   click to pin it.
 

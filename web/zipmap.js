@@ -6,7 +6,6 @@ const W = 975, H = 610;      // AlbersUSA canvas; the SVG scales to its containe
 const CAP = 3;                // buyer-depth steps within a vertical's hue: 1, 2, 3+
 // One hue per vertical, in _verticals order, unless the tab gives a color. Orange is kept for prospects.
 const PALETTE = ['#3a62d3', '#2e9e6b', '#7b5bd6', '#1f9fb8', '#c0479a', '#b8860b', '#8b5e3c', '#d9534f'];
-const MULTI = '#5f6670';      // a zip covered under two or more of the selected verticals
 
 function hexToRgb(hex) {
   const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
@@ -21,11 +20,23 @@ function cssToRgb(color) {
   const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(getComputedStyle(el).color); el.remove();
   return m ? [+m[1], +m[2], +m[3]] : [95, 102, 112];
 }
-// Lighten toward white by `t` (0 = the color itself). Three buyer-depth steps: 1 → light, 2 → mid, 3+ → full.
-function shade(color, n) {
-  const t = n >= 3 ? 0 : n === 2 ? 0.32 : 0.58;
-  const [r, g, b] = cssToRgb(color).map((c) => Math.round(c + (255 - c) * t));
-  return `rgb(${r},${g},${b})`;
+// Every provider's coverage is a translucent layer (ALPHA) in its vertical's color, and prospects
+// are a translucent orange layer. Stacking layers over white darkens the result, so overlap reads as
+// depth without drawing one path per provider. Same math as real alpha compositing.
+const ALPHA = 0.38;
+const PROSPECT = '#e0842b';
+const rgbCache = new Map();
+function rgbOf(color) {
+  if (!rgbCache.has(color)) rgbCache.set(color, cssToRgb(color));
+  return rgbCache.get(color);
+}
+function stack(colors) {
+  let r = 255, g = 255, b = 255;
+  for (const c of colors) {
+    const [cr, cg, cb] = rgbOf(c);
+    r += (cr - r) * ALPHA; g += (cg - g) * ALPHA; b += (cb - b) * ALPHA;
+  }
+  return `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
 }
 const FAR = 3, MID = 7, NEAR = 12;
 
@@ -67,14 +78,10 @@ export async function mountZipMap(container, config) {
   const mapEl = $('.zm-map');
   const svg = d3.select($('.zm-map svg')).attr('viewBox', `0 0 ${W} ${H}`);
   const defs = svg.append('defs');
-  const hatch = defs.append('pattern').attr('id', 'zm-hatch').attr('patternUnits', 'userSpaceOnUse')
-    .attr('width', 6).attr('height', 6).attr('patternTransform', 'rotate(45)');
-  hatch.append('line').attr('x1', 0).attr('y1', 0).attr('x2', 0).attr('y2', 6).attr('class', 'zm-hatch-line').attr('stroke-width', 1.2);
 
   const root = svg.append('g').attr('class', 'zm-root').attr('data-zoom', 'far');
   const gStates = root.append('g').attr('class', 'zm-states');
   const gZips = root.append('g').attr('class', 'zm-zips');
-  const gProspects = root.append('g').attr('class', 'zm-prospects');
   const gCounties = root.append('g').attr('class', 'zm-counties');
   const gPlaces = root.append('g').attr('class', 'zm-places');
   const gBorders = root.append('g').attr('class', 'zm-borders');
@@ -93,7 +100,6 @@ export async function mountZipMap(container, config) {
     const t = ev.transform;
     root.attr('transform', t);
     root.attr('data-zoom', t.k < FAR ? 'far' : t.k < MID ? 'mid' : t.k < NEAR ? 'near' : 'close');
-    hatch.attr('width', 6 / t.k).attr('height', 6 / t.k).select('line').attr('y2', 6 / t.k).attr('stroke-width', 1.2 / t.k);
     gLabels.attr("font-size", 11 / t.k).attr("stroke-width", 2.5 / t.k);
     gZipLabels.attr("font-size", 9 / t.k).attr("stroke-width", 2 / t.k);
     hideTip();
@@ -155,7 +161,7 @@ export async function mountZipMap(container, config) {
     const cov = state.cov;
     if (!cov) return;
     const statusOf = new Map(cov.buyers.map((b) => [b.name, b.status]));
-    const counts = new Map(), pros = new Map(), detail = new Map(), verts = new Map();
+    const counts = new Map(), pros = new Map(), detail = new Map(), layers = new Map();
     for (const e of cov.entries) {
       if (!state.buyers.has(e.buyer)) continue;
       if (!state.verticals.has(e.vertical)) continue;
@@ -163,9 +169,11 @@ export async function mountZipMap(container, config) {
       (detail.get(e.zip) ?? detail.set(e.zip, []).get(e.zip)).push({ ...e, status: s });
       if (s === 'active') {
         (counts.get(e.zip) ?? counts.set(e.zip, new Set()).get(e.zip)).add(e.buyer);
-        (verts.get(e.zip) ?? verts.set(e.zip, new Set()).get(e.zip)).add(e.vertical);
+        (layers.get(e.zip) ?? layers.set(e.zip, []).get(e.zip)).push(vertColor(e.vertical));
+      } else if (s === 'prospect' && state.prospects) {
+        (pros.get(e.zip) ?? pros.set(e.zip, new Set()).get(e.zip)).add(e.buyer);
+        (layers.get(e.zip) ?? layers.set(e.zip, []).get(e.zip)).push(PROSPECT);
       }
-      else if (s === 'prospect' && state.prospects) (pros.get(e.zip) ?? pros.set(e.zip, new Set()).get(e.zip)).add(e.buyer);
     }
     const activeSel = cov.buyers.filter((b) => b.status === 'active' && state.buyers.has(b.name));
     const activeHit = new Set([...counts.values()].flatMap((s) => [...s]));
@@ -173,12 +181,13 @@ export async function mountZipMap(container, config) {
     let max = 0;
     for (const s of counts.values()) max = Math.max(max, s.size);
     const usedVerts = new Set();
-    let anyMulti = false;
-    const color = (zip, n) => {
-      const vs = verts.get(zip);
-      if (vs.size === 1) { const v = vs.values().next().value; usedVerts.add(v); return shade(vertColor(v), single ? 3 : n); }
-      anyMulti = true;
-      return shade(MULTI, single ? 3 : n);
+    for (const e of cov.entries) if (statusOf.get(e.buyer) === 'active' && state.buyers.has(e.buyer) && state.verticals.has(e.vertical)) usedVerts.add(e.vertical);
+    const fillCache = new Map();
+    const color = (zip) => {
+      const key = layers.get(zip).slice().sort().join('|');
+      let f = fillCache.get(key);
+      if (!f) { f = stack(layers.get(zip)); fillCache.set(key, f); }
+      return f;
     };
 
     const labels = [], zipLabels = [];
@@ -187,7 +196,7 @@ export async function mountZipMap(container, config) {
     for (const rec of state.recs.values()) {
       for (const [zip, node] of rec.zipPaths) {
         const n = counts.get(zip)?.size || 0;
-        const fill = n ? color(zip, n) : 'transparent';
+        const fill = layers.has(zip) ? color(zip) : 'transparent';
         if (last.get(zip) !== fill) { node.setAttribute('fill', fill); node.classList.toggle('is-covered', n > 0); last.set(zip, fill); }
         if (n || pros.has(zip)) zipLabels.push({ zip, xy: rec.zipCentroid.get(zip) });
       }
@@ -200,15 +209,11 @@ export async function mountZipMap(container, config) {
       }
     }
     for (const zip of counts.keys()) if (!state.zipRec.has(zip)) notDrawn++;
-    // Prospect hatch: one path per prospect zip, reusing the zip's outline. Nothing for the rest.
-    gProspects.selectAll('path').data([...pros.keys()].filter((z) => state.zipRec.has(z)), (d) => d).join(
-      (enter) => enter.append('path').attr('class', 'zm-prospect').attr('d', (z) => state.zipRec.get(z).zipPaths.get(z).getAttribute('d')),
-    );
     state.labels = { places: labels, zips: zipLabels };
     renderLabels();
 
     const prospectOnly = [...pros.keys()].filter((z) => !counts.has(z)).length;
-    state.view = { counts, pros, detail, single, max, activeSel, activeHit, prospectOnly, citiesTouched, notDrawn, usedVerts, anyMulti };
+    state.view = { counts, pros, detail, single, max, activeSel, activeHit, prospectOnly, citiesTouched, notDrawn, usedVerts };
     renderStats();
     renderLegend();
     if (state.pinned) showTip(state.pinned.zip, state.pinned.st, null);
@@ -269,19 +274,14 @@ export async function mountZipMap(container, config) {
 
   function renderLegend() {
     const v = state.view;
-    let html = '';
-    if (!v.max) html = '<span class="zm-legend-none">No active coverage in this view</span>';
-    else {
-      const rows = state.cov.verticals.filter((x) => v.usedVerts.has(x)).map((x) => [x, vertColor(x)]);
-      if (v.anyMulti) rows.push(['2+ verticals', MULTI]);
-      const steps = v.single ? [3] : [1, 2, 3];
-      html = `<div class="zm-legend-grid" style="grid-template-columns:auto repeat(${steps.length},16px)">
-        <span class="zm-legend-t">${v.single ? `covered by ${esc(v.activeSel[0].name)}` : 'buyers per zip'}</span>${v.single ? '' : '<span class="zm-legend-h">1</span><span class="zm-legend-h">2</span><span class="zm-legend-h">3+</span>'}
-        ${rows.map(([name, c]) => `<span class="zm-legend-n">${esc(name)}</span>${steps.map((n) => `<span class="zm-sw-cell"><svg width="14" height="14"><rect width="14" height="14" rx="3" fill="${shade(c, n)}"/></svg></span>`).join('')}`).join('')}
-      </div>`;
-    }
-    if (state.prospects && v.pros.size) html += sw('url(#zm-hatch)', 'prospect target', 'is-hatch');
-    $('.zm-legend').innerHTML = html;
+    const rows = state.cov.verticals.filter((x) => v.usedVerts.has(x)).map((x) => [x, vertColor(x)]);
+    if (state.prospects && v.pros.size) rows.push(['Prospects', PROSPECT]);
+    if (!rows.length) { $('.zm-legend').innerHTML = '<span class="zm-legend-none">No coverage in this view</span>'; return; }
+    const steps = [1, 2, 3];
+    $('.zm-legend').innerHTML = `<div class="zm-legend-grid" style="grid-template-columns:auto repeat(${steps.length},16px)">
+        <span class="zm-legend-t">providers per zip</span><span class="zm-legend-h">1</span><span class="zm-legend-h">2</span><span class="zm-legend-h">3+</span>
+        ${rows.map(([name, c]) => `<span class="zm-legend-n">${esc(name)}</span>${steps.map((n) => `<span class="zm-sw-cell"><svg width="14" height="14"><rect width="14" height="14" rx="3" fill="${stack(Array(n).fill(c))}"/></svg></span>`).join('')}`).join('')}
+      </div><span class="zm-legend-note">layers are translucent: overlaps darken and colors mix</span>`;
   }
   const sw = (fill, label, cls = '') =>
     `<span class="zm-sw ${cls}"><svg width="14" height="14"><rect width="14" height="14" rx="3" fill="${fill}"/></svg>${label}</span>`;

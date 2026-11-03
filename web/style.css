@@ -124,6 +124,7 @@ details.zm-sec[open] summary::before { content: '\25BE'; }
 .zm-legend-t, .zm-legend-none { color: var(--zm-muted); }
 .zm-legend-grid { display: grid; grid-template-columns: auto repeat(3, 16px); gap: 3px 6px; align-items: center; }
 .zm-legend-grid .zm-legend-t { grid-column: 1; }
+.zm-legend-note { font-size: 11px; color: var(--zm-muted); flex-basis: 100%; }
 .zm-legend-h { font-size: 10px; color: var(--zm-muted); text-align: center; }
 .zm-legend-n { font-size: 12px; }
 .zm-sw-cell { display: inline-flex; }
