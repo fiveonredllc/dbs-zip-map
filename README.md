@@ -50,18 +50,6 @@ Fallbacks: `?source=mock` reads the local CSV tabs. `source: 'sheet'` reads a sh
 "Anyone with the link" through Google's CSV export with no sign-in, which the DBS Workspace policy
 does not allow for this sheet.
 
-## Team gate
-
-`web/index.html` asks for a username and password before the map loads. Only a SHA-256 hash of
-`username:password` is in the page, and a correct entry is remembered in that browser for 30 days.
-It keeps the page internal-looking; it is not a security boundary (anything in a static page can be
-read), and the buyer data is protected by the Google sign-in regardless. To change the credentials,
-regenerate the hash and paste it into `GATE_HASH`:
-
-```bash
-printf 'username:password' | shasum -a 256
-```
-
 ## Sheet contract
 
 | Tab | Columns | Rules |
