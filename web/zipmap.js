@@ -436,7 +436,8 @@ export async function mountZipMap(container, config) {
       const had = state.cov ? state.buyers : null;
       const hadV = state.cov ? state.verticals : null;
       state.cov = cov;
-      state.buyers = new Set(cov.buyers.filter((b) => b.status !== 'paused' && (!had || had.has(b.name))).map((b) => b.name));
+      // First load: active buyers only; prospects start unchecked. A reload keeps whatever was selected.
+      state.buyers = new Set(cov.buyers.filter((b) => (had ? had.has(b.name) : b.status === 'active')).map((b) => b.name));
       state.verticals = new Set(cov.verticals.filter((v) => !hadV || hadV.has(v)));
       renderControls();
       renderIssues();
