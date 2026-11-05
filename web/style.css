@@ -86,6 +86,7 @@ details.zm-sec[open] summary::before { content: '\25BE'; }
 .zm-issues-head { color: var(--zm-muted); font-size: 11px; padding-bottom: 4px; border-bottom: 1px solid var(--zm-line); }
 .zm-issue { padding: 2px 0; }
 .zm-issue-w { display: flex; gap: 6px; align-items: baseline; }
+.zm-issue-w i { font-style: normal; color: var(--zm-muted); font-size: 11px; }
 .zm-issue-v { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--zm-ink); }
 .zm-issue.is-error .zm-issue-w b { color: var(--zm-bad); }
 .zm-issue.is-warn .zm-issue-w b { color: var(--zm-warn); }

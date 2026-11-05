@@ -291,11 +291,12 @@ export async function mountZipMap(container, config) {
     let total = 0;
     for (const i of cov.issues) {
       if (i.level !== 'info') continue;
-      const z = `${i.tab}|${i.value}`;
+      const who = i.buyer || i.tab;
+      const z = `${who}|${i.value}`;
       if (seen.has(z)) continue;
       seen.add(z); total++;
-      const k = `${i.tab}|${i.problem}`;
-      (groups.get(k) ?? groups.set(k, { tab: i.tab, problem: i.problem, n: 0 }).get(k)).n++;
+      const k = `${who}|${i.problem}`;
+      (groups.get(k) ?? groups.set(k, { tab: who, problem: i.problem, n: 0 }).get(k)).n++;
     }
     return { total, groups };
   }
@@ -307,7 +308,7 @@ export async function mountZipMap(container, config) {
     const box = $('.zm-issues');
     if (!all.length) { box.innerHTML = '<p class="zm-issues-ok">No data issues. Every cell read cleanly.</p>'; return; }
     box.innerHTML = `<div class="zm-issues-head">Errors are left off the map and need a fix in the sheet. Warnings are counted and just need a look.</div>
-      ${list.map((i) => `<div class="zm-issue is-${i.level}"><div class="zm-issue-w"><b>${esc(i.tab)}</b> ${i.col || ''}${i.row || ''}<span class="zm-issue-v">${esc(i.value)}</span></div><div class="zm-issue-p">${esc(i.problem)}</div></div>`).join('')}
+      ${list.map((i) => `<div class="zm-issue is-${i.level}"><div class="zm-issue-w"><b>${esc(i.buyer || i.tab)}</b> ${i.buyer && i.tab !== i.buyer ? `<i>${esc(i.tab)}</i> ` : ''}${i.col || ''}${i.row || ''}<span class="zm-issue-v">${esc(i.value)}</span></div><div class="zm-issue-p">${esc(i.problem)}</div></div>`).join('')}
       ${info.size ? `<div class="zm-issues-notes">${[...info.values()].map((i) => `<div><b>${esc(i.tab)}</b> · ${i.n.toLocaleString()} ${esc(i.problem)}</div>`).join('')}</div>` : ''}`;
   }
 

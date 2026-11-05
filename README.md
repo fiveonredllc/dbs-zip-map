@@ -56,7 +56,8 @@ does not allow for this sheet.
 |---|---|---|
 | `_buyers` | `buyer`, `status`, `notes` | One row per buyer. `status` is `active`, `prospect` or `paused`. The buyer name must match its tab name exactly. |
 | `_verticals` | `vertical`, `notes`, optional `color` | One row per vertical. Column headers on buyer tabs must match these (case and spacing ignored). Each vertical gets its own map color in tab order; put a CSS color such as `#2e9e6b` in `color` to pin one. |
-| one tab per buyer | row 1 = vertical names | Every cell below the header is one coverage item: a 5-digit zip (ZIP+4 accepted) or `City, ST`. Column lengths can differ. |
+| `coverage` | row 1 = buyer, row 2 = vertical | One column per buyer-and-vertical pair. Every cell below row 2 is one coverage item: a 5-digit zip (ZIP+4 accepted) or `City, ST`. Column lengths can differ. A buyer name in row 1 carries across the blank cells to its right, so a merged header cell over several vertical columns works. |
+| one tab per buyer (optional) | row 1 = vertical names | The older layout. A tab named exactly as a buyer in `_buyers` is read the same way and merged with the `coverage` tab, so the two can coexist while tabs are migrated. |
 
 How values are read:
 
@@ -65,6 +66,9 @@ How values are read:
 - **Cities** expand to every standard zip that USPS lists under that name (including USPS "acceptable"
   names, so `Highlands Ranch, CO` works even though USPS files it under Littleton) plus every zip whose
   area overlaps the Census city boundary by at least 10%. Unknown cities are errors.
+- **Updating a buyer** is: click the column's first zip, Shift+click its last, delete, paste the new list.
+  **Adding a buyer** is a row in `_buyers` plus a new column in `coverage` with its name in row 1 and the
+  vertical in row 2. A buyer in `_buyers` with no column and no tab shows as a warning.
 - **Statuses**: `active` buyers make the heat. `prospect` buyers draw the orange hatch and never count
   toward heat. `paused` buyers are listed but ignored.
 - **Leading zeros**: format zip columns as plain text in Sheets, or `02134` becomes `2134` and the page

@@ -86,6 +86,18 @@ async function fetchTabGoogle(config, tab) {
   return values.map((r) => Array.from({ length: width }, (_, i) => String(r[i] ?? '').trim()));
 }
 
+// Names of the tabs in the workbook, or null when the source can't say (mock CSVs).
+export async function listTabs(config) {
+  if (config.source !== 'google') return null;
+  const token = savedToken();
+  if (!token) throw new Error('not signed in');
+  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${config.sheetId}?fields=sheets.properties.title`, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
+  if (!res.ok) return null;
+  const { sheets = [] } = await res.json();
+  return new Set(sheets.map((x) => x.properties.title));
+}
+const isMissing = (e) => /tab missing|HTTP 404/.test(e.message);
+
 export async function fetchTab(config, tab) {
   if (config.source === 'google') return fetchTabGoogle(config, tab);
   const res = await fetch(tabUrl(config, tab), { cache: 'no-store' });
@@ -138,11 +150,50 @@ export async function loadWorkbook(config) {
   const vertByNorm = new Map(verticals.map((v) => [norm(v), v]));
 
   const raw = [];
+  const buyerByNorm = new Map(buyers.map((b) => [norm(b.name), b]));
+  const tabs = await listTabs(config).catch(() => null);
+  const hasTab = (name) => (tabs ? tabs.has(name) : null);   // null = unknown, try it
+
+  // Layout A: one `coverage` tab. Row 1 = buyer, row 2 = vertical, one column per pair. A buyer name
+  // in row 1 carries across blank cells to its right, so merged header cells work too.
+  const covered = new Set();
+  if (hasTab('coverage') !== false) {
+    let rows = null;
+    try { rows = await fetchTab(config, 'coverage'); }
+    catch (e) { if (!isMissing(e)) issue('error', { tab: 'coverage', row: 0, value: '', problem: `tab could not be read: ${e.message}` }); }
+    if (rows) {
+      const [h1 = [], h2 = [], ...body] = rows;
+      let carry = null;
+      const cols = h1.map((name, c) => {
+        if (name) carry = name;
+        const vname = h2[c] || '';
+        if (!carry && !vname) return null;
+        const b = buyerByNorm.get(norm(carry || ''));
+        const v = vertByNorm.get(norm(vname));
+        if (!b) { issue('error', { tab: 'coverage', row: 1, col: colLetter(c), value: carry || '', problem: 'buyer is not listed in _buyers (column ignored)' }); return null; }
+        if (!v) { issue('error', { tab: 'coverage', row: 2, col: colLetter(c), value: vname, problem: 'vertical is not listed in _verticals (column ignored)' }); return null; }
+        covered.add(b.name);
+        return { buyer: b.name, vertical: v };
+      });
+      body.forEach((r, ri) => r.forEach((cell, ci) => {
+        if (!cell) return;
+        if (!cols[ci]) { if (!h1[ci] && !h2[ci]) issue('warn', { tab: 'coverage', row: ri + 3, col: colLetter(ci), value: cell, problem: 'value under an empty header (ignored)' }); return; }
+        raw.push({ buyer: cols[ci].buyer, vertical: cols[ci].vertical, value: cell, tab: 'coverage', row: ri + 3, col: colLetter(ci) });
+      }));
+    }
+  }
+
+  // Layout B: one tab per buyer, named exactly as in _buyers. Row 1 = verticals. Both layouts can coexist.
   await Promise.all(buyers.map(async (b) => {
+    if (hasTab(b.name) === false) {
+      if (!covered.has(b.name)) issue('warn', { tab: '_buyers', row: 0, value: b.name, problem: 'no coverage found: no columns in the coverage tab and no tab with this name' });
+      return;
+    }
     let rows;
     try {
       rows = await fetchTab(config, b.name);
     } catch (e) {
+      if (isMissing(e)) { if (!covered.has(b.name)) issue('warn', { tab: '_buyers', row: 0, value: b.name, problem: 'no coverage found: no columns in the coverage tab and no tab with this name' }); return; }
       return issue('error', { tab: b.name, row: 0, value: '', problem: `tab could not be read: ${e.message}` });
     }
     const [head = [], ...body] = rows;
@@ -169,7 +220,7 @@ export async function loadWorkbook(config) {
 // known states, and loadMeta(st) -> the state's meta file (zips, cities, places).
 export async function resolveCoverage(wb, geo) {
   const issues = wb.issues.slice();
-  const issue = (level, r, problem) => issues.push({ level, tab: r.tab, row: r.row, col: r.col, value: r.value, problem });
+  const issue = (level, r, problem) => issues.push({ level, buyer: r.buyer, tab: r.tab, row: r.row, col: r.col, value: r.value, problem });
 
   const needs = new Set();
   const parsed = [];

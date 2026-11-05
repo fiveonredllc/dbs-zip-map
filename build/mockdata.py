@@ -93,8 +93,17 @@ def main() -> None:
         "_buyers": [["buyer", "status", "notes"], *[list(b) for b in BUYERS]],
         "_verticals": [["vertical", "notes"], *[list(v) for v in VERTICALS]],
     }
-    for name, tab in TABS.items():
-        sheets[name] = rows_for(tab)
+    # Single `coverage` tab: row 1 = buyer, row 2 = vertical, one column per pair. "Old Buyer" stays
+    # on its own tab so the per-buyer layout keeps getting exercised.
+    legacy = {"Old Buyer"}
+    pairs = [(buyer, vert, vals) for buyer, tab in TABS.items() if buyer not in legacy for vert, vals in tab.items()]
+    depth = max(len(v) for _, _, v in pairs)
+    cov = [[b for b, _, _ in pairs], [v for _, v, _ in pairs]]
+    for i in range(depth):
+        cov.append([vals[i] if i < len(vals) else "" for _, _, vals in pairs])
+    sheets["coverage"] = cov
+    for name in legacy:
+        sheets[name] = rows_for(TABS[name])
 
     wb = Workbook()
     wb.remove(wb.active)
@@ -106,10 +115,10 @@ def main() -> None:
             for c, val in enumerate(row, start=1):
                 cell = ws.cell(row=r, column=c, value=val)
                 cell.number_format = "@"          # text, so leading zeros survive
-                if r == 1:
+                if r == 1 or (name == "coverage" and r == 2):
                     cell.font = head_font
                     cell.fill = head_fill
-        ws.freeze_panes = "A2"
+        ws.freeze_panes = "A3" if name == "coverage" else "A2"
         for col in ws.columns:
             ws.column_dimensions[col[0].column_letter].width = 26 if name.startswith("_") else 18
         with (MOCK / f"{name}.csv").open("w", newline="") as f:
