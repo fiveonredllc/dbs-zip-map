@@ -152,14 +152,17 @@ export async function loadWorkbook(config) {
   const raw = [];
   const buyerByNorm = new Map(buyers.map((b) => [norm(b.name), b]));
   const tabs = await listTabs(config).catch(() => null);
-  const hasTab = (name) => (tabs ? tabs.has(name) : null);   // null = unknown, try it
+  // Tab names match regardless of capitalization and spacing ("Coverage" = "coverage").
+  const tabByNorm = tabs ? new Map([...tabs].map((t) => [norm(t), t])) : null;
+  const actualTab = (name) => (tabByNorm ? tabByNorm.get(norm(name)) ?? null : name);   // null = known missing
+  const hasTab = (name) => (tabByNorm ? tabByNorm.has(norm(name)) : null);              // null = unknown, try it
 
   // Layout A: one `coverage` tab. Row 1 = buyer, row 2 = vertical, one column per pair. A buyer name
   // in row 1 carries across blank cells to its right, so merged header cells work too.
   const covered = new Set();
   if (hasTab('coverage') !== false) {
     let rows = null;
-    try { rows = await fetchTab(config, 'coverage'); }
+    try { rows = await fetchTab(config, actualTab('coverage')); }
     catch (e) { if (!isMissing(e)) issue('error', { tab: 'coverage', row: 0, value: '', problem: `tab could not be read: ${e.message}` }); }
     if (rows) {
       const [h1 = [], h2 = [], ...body] = rows;
@@ -183,7 +186,14 @@ export async function loadWorkbook(config) {
     }
   }
 
-  // Layout B: one tab per buyer, named exactly as in _buyers. Row 1 = verticals. Both layouts can coexist.
+  // A tab that is neither a control tab nor a listed buyer would otherwise vanish without a trace.
+  if (tabs) for (const t of tabs) {
+    const n = norm(t);
+    if (t.startsWith('_') || n === 'coverage' || buyerByNorm.has(n)) continue;
+    issue('warn', { tab: t, row: 0, value: t, problem: 'tab is not listed in _buyers, so it is not on the map (add the buyer to _buyers, or delete the tab)' });
+  }
+
+  // Layout B: one tab per buyer, named as in _buyers. Row 1 = verticals. Both layouts can coexist.
   await Promise.all(buyers.map(async (b) => {
     if (hasTab(b.name) === false) {
       if (!covered.has(b.name)) issue('warn', { tab: '_buyers', row: 0, value: b.name, problem: 'no coverage found: no columns in the coverage tab and no tab with this name' });
@@ -191,7 +201,7 @@ export async function loadWorkbook(config) {
     }
     let rows;
     try {
-      rows = await fetchTab(config, b.name);
+      rows = await fetchTab(config, actualTab(b.name));
     } catch (e) {
       if (isMissing(e)) { if (!covered.has(b.name)) issue('warn', { tab: '_buyers', row: 0, value: b.name, problem: 'no coverage found: no columns in the coverage tab and no tab with this name' }); return; }
       return issue('error', { tab: b.name, row: 0, value: '', problem: `tab could not be read: ${e.message}` });
